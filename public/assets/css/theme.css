@@ -43,27 +43,44 @@
 :root[data-theme="dark"] ::selection { background: #414849; color: var(--text); }
 :root[data-theme-mode="catppuccin-mocha"] ::selection { background: #45475a; }
 
-/* Prefix labels are hardcoded voz colours in avatar.css; Catppuccin re-tints them with its own
-   accents — coloured text on a soft tint of the same hue. */
-:root[data-theme-mode="catppuccin-mocha"] .label--red { color: #f38ba8; background: rgba(243, 139, 168, .15); border-color: rgba(243, 139, 168, .45); }
-:root[data-theme-mode="catppuccin-mocha"] .label--green { color: #a6e3a1; background: rgba(166, 227, 161, .15); border-color: rgba(166, 227, 161, .45); }
-:root[data-theme-mode="catppuccin-mocha"] .label--royalBlue { color: #89b4fa; background: rgba(137, 180, 250, .15); border-color: rgba(137, 180, 250, .45); }
-:root[data-theme-mode="catppuccin-mocha"] .label--orange,
-:root[data-theme-mode="catppuccin-mocha"] .label--accent { color: #fab387; background: rgba(250, 179, 135, .15); border-color: rgba(250, 179, 135, .45); }
-:root[data-theme-mode="catppuccin-mocha"] .label--olive { color: #f9e2af; background: rgba(249, 226, 175, .15); border-color: rgba(249, 226, 175, .45); }
-:root[data-theme-mode="catppuccin-mocha"] .label--gray { color: #a6adc8; background: rgba(166, 173, 200, .15); border-color: rgba(166, 173, 200, .45); }
+/* Prefix labels are hardcoded voz colours in avatar.css; Mocha keeps voz's per-category hues and
+   tunes each to its nearest Catppuccin accent — coloured text on a soft tint of the same hue. The
+   tint sits at 10%: the plum unread-bg lifts the effective blend, and 15% pushed the red, blue and
+   gray labels just under AA on unread rows. */
+:root[data-theme-mode="catppuccin-mocha"] .label--red { color: #f38ba8; background: rgba(243, 139, 168, .1); border-color: rgba(243, 139, 168, .45); }
+:root[data-theme-mode="catppuccin-mocha"] .label--green { color: #a6e3a1; background: rgba(166, 227, 161, .1); border-color: rgba(166, 227, 161, .45); }
+:root[data-theme-mode="catppuccin-mocha"] .label--royalBlue { color: #89b4fa; background: rgba(137, 180, 250, .1); border-color: rgba(137, 180, 250, .45); }
+/* voz paints `orange` as a gold chip and `accent` as a pale-orange chip; Peach and Rosewater keep
+   the two apart. `primary` joins the same tint family instead of its solid surface-accent chip. */
+:root[data-theme-mode="catppuccin-mocha"] .label--orange { color: #fab387; background: rgba(250, 179, 135, .1); border-color: rgba(250, 179, 135, .45); }
+:root[data-theme-mode="catppuccin-mocha"] .label--accent { color: #f5e0dc; background: rgba(245, 224, 220, .1); border-color: rgba(245, 224, 220, .45); }
+:root[data-theme-mode="catppuccin-mocha"] .label--olive { color: #f9e2af; background: rgba(249, 226, 175, .1); border-color: rgba(249, 226, 175, .45); }
+:root[data-theme-mode="catppuccin-mocha"] .label--gray { color: #a6adc8; background: rgba(166, 173, 200, .1); border-color: rgba(166, 173, 200, .45); }
+:root[data-theme-mode="catppuccin-mocha"] .label--primary { color: #89b4fa; background: rgba(137, 180, 250, .1); border-color: rgba(137, 180, 250, .45); }
 
-/* Sticky thread titles use a hardcoded orange in dark mode; Mocha gets its peach. */
-:root[data-theme-mode="catppuccin-mocha"] .structItemContainer-group--sticky .structItem-title a { color: #fab387; }
+/* Sticky thread titles use a hardcoded orange in dark mode; Mocha gets its peach. The extra
+   [data-theme] is not decoration: theme.css loads before forum.css, so an equal-specificity tie
+   would let forum.css win and the peach would never apply. */
+:root[data-theme-mode="catppuccin-mocha"][data-theme="dark"] .structItemContainer-group--sticky .structItem-title a { color: #fab387; }
 
 /* The thread-title header (post.css) and the screenshot band that mirrors it draw their text straight
    on the page — no blue fill — so they keep Mocha's light text instead of the dark header fg. */
 :root[data-theme-mode="catppuccin-mocha"] .block--messages > .block-header,
 :root[data-theme-mode="catppuccin-mocha"] .screenshot-title { color: var(--text); }
 
+/* Unread rows keep voz's tinted-row marker; bold alone is too faint here because the default font
+   ships no bold face (600 is synthesised from the 400 cut) and four families drop to 500. Mocha
+   scopes this itself so the stock themes keep their voz-exact list. */
+:root[data-theme-mode="catppuccin-mocha"] .structItem--thread.is-unread { background: var(--unread-bg); }
+
+/* post.css recolours the banned chip for dark with a stock-dark red; Mocha uses its own danger red.
+   Same tie-breaker as the sticky title: post.css loads later, so the extra [data-theme] wins. */
+:root[data-theme-mode="catppuccin-mocha"][data-theme="dark"] .member-card-banned { color: var(--danger-text); }
+
 /* Chips that fill with the header blue but paint their glyph with --on-dark (white, frozen for the
-   dark chrome) need the dark-on-accent pair instead, like the editor submit button. */
-:root[data-theme-mode="catppuccin-mocha"] .node-icon,
+   dark chrome) need the dark-on-accent pair instead, like the editor submit button. .node-icon
+   carries the extra [data-theme] because home.css's unread icon rule ties with it and loads later. */
+:root[data-theme-mode="catppuccin-mocha"][data-theme="dark"] .node-icon,
 :root[data-theme-mode="catppuccin-mocha"] .pageNav span.current,
 :root[data-theme-mode="catppuccin-mocha"] .pageNav-scrollBtn.is-active,
 :root[data-theme-mode="catppuccin-mocha"] .infinite-stop,
