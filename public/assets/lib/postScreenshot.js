@@ -126,7 +126,8 @@ function inlineStyles(width) {
 // Re-encode through the proxy so the canvas stays untainted. Unreadable images are dropped rather than failing
 // the whole capture.
 async function toDataUrl(img) {
-  const url = img.currentSrc || img.src || '';
+  // A data-saving thumbnail is swapped back to its original first: screenshots stay full resolution.
+  const url = img.dataset.saveOriginal || img.currentSrc || img.src || '';
   if (!url) return null;
   if (url.startsWith('data:')) return url;
   // Attachments resolve to their canonical URL first: the short form is a redirect that Cloudflare often
@@ -400,7 +401,7 @@ async function capturePost(article, button) {
   const noun = article.dataset.messageId ? 'tin nhắn' : 'bài viết';
   try {
     const source = article.cloneNode(true);
-    source.querySelectorAll(`.${BUTTON_CLASS}`).forEach((n) => n.remove());
+    source.querySelectorAll(`.${BUTTON_CLASS}, .save-thumb-load`).forEach((n) => n.remove());
     // The clone is measured off-screen, then rasterised; it never becomes visible.
     const width = layoutWidth(article);
     const sheet = buildSheet(threadTitle(), source, width);

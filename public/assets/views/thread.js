@@ -15,7 +15,7 @@ import { postHtml } from '../ui/post.js';
 import { wireThreadRowBans } from '../ui/threadRow.js';
 import { hydrateReactionLists, reactionBar, reactionSummary, invalidateReactionUsers } from '../ui/reactions.js';
 import { editorHtml, wireEditor, clearEditorDraft } from '../ui/editor.js';
-import { registerAttachments, clearAttachments } from '../lib/attachments.js';
+import { registerAttachments, clearAttachments, swapAttachmentThumbnails } from '../lib/attachments.js';
 import { openInlineEdit } from '../ui/inlineEdit.js';
 import { openReportModal } from '../ui/modal.js';
 import { prefixLabel } from '../lib/prefix.js';
@@ -226,6 +226,7 @@ export async function viewThread(threadId, page, focusPost) {
       </div>`;
 
     wireEditor(app);
+    swapAttachmentThumbnails(app);
     wireMemberTooltips(app, posts.map((post) => post.User));
     wireThreadRowBans(document.getElementById('post-list'), posts.map((post) => post.User));
     wireThreadActions(threadId, posts, thread, res.pagination ? res.pagination.current_page : 1);
@@ -254,6 +255,7 @@ export async function viewThread(threadId, page, focusPost) {
         wireSignatureToggles(list);
         hydrateReactionLists(list);
         wireMemberTooltips(list, more.map((post) => post.User));
+        swapAttachmentThumbnails(list);
         for (const post of more) postIndex.set(post.post_id, post);
         markReadUpTo(threadId, thread.is_unread, more);
         return more.length;
