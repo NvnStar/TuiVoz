@@ -209,7 +209,7 @@ function settingsHtml(active = settingsTabFromHash()) {
       <section class="settings-panel" id="panel-system" role="tabpanel" aria-labelledby="tab-system"${active === 'system' ? '' : ' hidden'}>
         <div class="block-body--pad">
           <h3 class="settings-subhead">Tiết kiệm dữ liệu</h3>
-          <p class="formHint">Giảm dữ liệu tiêu thụ khi đọc: dừng đếm thông báo nền, nhúng video chỉ tải khi bấm (YouTube, TikTok, Facebook, Vimeo, Douyin), danh sách cảm xúc hiện số đếm thay vì tải tên từng người, không kiểm tra ảnh đại diện động, không tự nối trang trước khi cần, không gửi số liệu thống kê.</p>
+          <p class="formHint">Giảm dữ liệu tiêu thụ khi đọc: dừng đếm thông báo nền, nhúng video chỉ tải khi bấm (YouTube, TikTok, Facebook, Vimeo, Douyin, Twitter/X), ảnh đính kèm chỉ tải thumbnail, dừng hoạt ảnh ảnh đại diện (GIF/WebP), bỏ qua ảnh retina 2×, ẩn dải cảm xúc, không tự nối trang trước khi cần, không gửi số liệu thống kê.</p>
           ${optionCards('data-saving', DATA_SAVING_MODES, DATA_SAVING_LABELS, DATA_SAVING_HELP, dataSaving)}
           <h3 class="settings-subhead">Hiện thị số liệu không rút gọn</h3>
           <p class="formHint">voz.vn rút gọn số liệu (13K, 1M) và thời gian tương đối (3 giờ trước). Bật mục này để thấy số đầy đủ và mốc thời gian chính xác.</p>

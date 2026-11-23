@@ -11,8 +11,8 @@ const stills = new Map();
 const seen = new WeakSet();
 
 // Enough bytes to decide a format before downloading the whole file: GIF block structure and WebP/PNG headers
-// all sit at the front.
-const SNIFF_BYTES = 65_536;
+// all sit at the front. 4KB is sufficient without burning 64KB on static JPEG probes.
+const SNIFF_BYTES = 4096;
 
 function proxyUrl(url, limit = 0) {
   const query = `/api/image-download?url=${encodeURIComponent(url)}`;
@@ -186,11 +186,7 @@ function restore(img) {
 // Every avatar renders through `img.avatar-img`. Only avatars that have been on screen are resolved: a list
 // page carries 40+ avatars and almost all are stills.
 function refresh() {
-  // Freezing an avatar costs a 64KB proxy probe (plus a second full fetch for undecided GIFs, and the PNG
-  // re-encode can outsize the source), which is data-negative on mobile — save mode leaves avatars alone
-  // regardless of the static-avatars setting.
-  if (isDataSaving()) return;
-  const enabled = getStaticAvatars();
+  const enabled = getStaticAvatars() || isDataSaving();
   for (const img of document.querySelectorAll('img.avatar-img')) {
     if (!enabled) {
       restore(img);

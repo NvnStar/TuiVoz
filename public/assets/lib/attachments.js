@@ -70,6 +70,7 @@ export function swapAttachmentThumbnails(root) {
   if (!isDataSaving()) return 0;
   let swapped = 0;
   for (const img of root.querySelectorAll('img')) {
+    if (img.dataset.saveOriginal || img.closest('.save-thumb-wrap')) continue;
     const src = img.currentSrc || img.getAttribute('src') || '';
     if (!src.includes('/attachments/')) continue;
     const id = attachmentIdFromSrc(src);
@@ -120,8 +121,10 @@ document.addEventListener('click', (event) => {
 function attachmentIdFromSrc(src) {
   const direct = String(src || '').match(/\/attachments\/(?:[^/?#]*\.)?(\d+)(?:\/|\?|#|$)/i);
   if (direct && registry.has(direct[1])) return direct[1];
-  for (const candidate of String(src || '').match(/\d+/g) || []) {
-    if (candidate.length >= 5 && registry.has(candidate)) return candidate;
+  const candidates = String(src || '').match(/\d+/g) || [];
+  candidates.sort((a, b) => b.length - a.length);
+  for (const candidate of candidates) {
+    if (registry.has(candidate)) return candidate;
   }
   return null;
 }

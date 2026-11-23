@@ -1,6 +1,7 @@
 // Avatars. voz.vn serves them from data.voz.vn and falls back to a coloured initial.
 
 import { esc } from '../core/utils.js';
+import { isDataSaving } from './dataSaving.js';
 
 // voz.vn buckets avatar files by floor(user_id / 1000).
 export function avatarUrlById(userId, size = 's') {
@@ -37,7 +38,9 @@ export function avatarMarkup(user, size = 's') {
   const retina = known
     ? urls[retinaSize] || urls.o || urls.l || urls.m || ''
     : avatarUrlById(id, retinaSize);
-  const srcset = retina && retina !== src ? ` srcset="${esc(retina)} 2x"` : '';
+  const saving = isDataSaving();
+  // In data-saving mode, skip 2x retina sources: avoids downloading larger 'm'/'l' avatars on high-DPI mobile screens
+  const srcset = !saving && retina && retina !== src ? ` srcset="${esc(retina)} 2x"` : '';
   const [bg, fg] = DYNAMIC_AVATAR[id % DYNAMIC_AVATAR.length];
   const initial = esc(((user && user.username) || '?').slice(0, 1).toUpperCase());
   const img = src

@@ -242,8 +242,8 @@ const DOUYIN_PAGE = (id) => `https://www.douyin.com/video/${id}`;
 
 // Data-saving placeholder scope: the players that cost megabytes of provider JavaScript. Image/content embeds
 // (imgur, Reddit, Spotify, SoundCloud, Flickr) keep loading — they are often the content itself.
-const VIDEO_SITES = ['youtube', 'vimeo', 'tiktok', 'facebook', 'twitter'];
-const SITE_LABELS = { youtube: 'YouTube', vimeo: 'Vimeo', tiktok: 'TikTok', facebook: 'Facebook', twitter: 'X' };
+const VIDEO_SITES = ['youtube', 'vimeo', 'tiktok', 'facebook', 'twitter', 'x'];
+const SITE_LABELS = { youtube: 'YouTube', vimeo: 'Vimeo', tiktok: 'TikTok', facebook: 'Facebook', twitter: 'X', x: 'X' };
 
 // One tap handler per placeholder kind, installed once. Each rebuilds the real embed in place, so the lazy
 // iframe (and the provider's JavaScript) only loads when the reader asks for it.
@@ -487,7 +487,7 @@ export function restoreMedia(root) {
       link.target = '_blank';
       link.rel = 'noopener nofollow ugc';
       link.className = 'media-source';
-      link.textContent = `Mở trên ${site === 'twitter' ? 'X' : site}`;
+      link.textContent = `Mở trên ${SITE_LABELS[site] || site}`;
       embed.append(link);
     }
     embed.classList.add('media-embed');

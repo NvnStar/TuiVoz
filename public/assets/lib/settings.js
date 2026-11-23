@@ -129,8 +129,9 @@ export const FULL_NUMBERS_LABELS = {
   all: 'Áp dụng cho toàn bộ web',
 };
 
-// Tiết kiệm dữ liệu — the switch behind every Tier-1 saving lever (paused unread polling, counts-only
-// reaction strips, tap-to-load video embeds, no avatar sniffing, no prefetch, no analytics):
+// Tiết kiệm dữ liệu — the switch behind every Tier-1 saving lever (paused unread polling, hidden
+// reaction strips, tap-to-load video/X embeds, thumbnail attachment previews, frozen animated avatars
+// without 2x srcset, no prefetch, no analytics):
 //   auto — on when the device itself signals saving (Android Data Saver via navigator.connection.saveData,
 //          slow effective types, or cellular); iOS exposes none of these, so there the manual toggle is the
 //          only path; on — always; off — never.
