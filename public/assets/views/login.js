@@ -85,13 +85,12 @@ export async function viewLogin() {
               <li>Quay lại đây bấm <b>Đăng nhập với voz.vn</b> — voz sẽ uỷ quyền cho tài khoản mới.</li>
             </ol>
             Nếu bỏ qua bước 1, voz sẽ tự uỷ quyền lại đúng tài khoản cũ.
-          </div>` : ''}
+          </div>` : `
           <ol class="login-steps">
-            <li>Nhấn <b>Đăng nhập với voz.vn</b>.</li>
-            <li>Trình duyệt điều hướng tới trang proxy voz.vn của vercel.</li>
-            <li>Đăng nhập vào trang này.</li>
-            <li>Sau khi đăng nhập xong quay trở lại trang chủ. Bấm đăng thêm một lần nữa. Sẽ đăng nhập được</li>
-          </ol>
+            <li>Bấm <b>Đăng nhập với voz.vn</b> — trình duyệt sẽ chuyển tới trang voz.vn.</li>
+            <li><b>Đăng nhập tài khoản voz</b> của bạn ở trang đó (nếu chưa đăng nhập).</li>
+            <li>Sau khi đăng nhập, quay lại đây bấm <b>Đăng nhập với voz.vn</b> thêm một lần nữa là xong.</li>
+          </ol>`}
           <div class="formRow">
             <button class="button button--primary" type="button" id="oauth-login">${addingAccount ? 'Đăng nhập thêm tài khoản' : 'Đăng nhập với voz.vn'}</button>
           </div>

@@ -258,3 +258,13 @@ Không cần bump sw.js — toàn bộ fix server-side. Verify sau deploy trên 
 ## 2025 — JSON overlay rewrite (login form action)
 
 Login trên `/forum/` submit tới `/login/login` (thiếu `/forum`) → 405 redirect error. Nguyên nhân: form login (và mọi overlay XF: lightbox, menu dropdown, reaction…) load qua AJAX `_xfResponseType=json` — response JSON chứa HTML nhúng dạng `"html":{"content":"<form action=\"\/login\/login\" …"}`; rewrite trước chỉ xử lý key `redirect` nên attribute root-relative trong HTML nhúng escape khỏi proxy. Fix (api/handler.js): thêm 2 pass regex rewrite cho `(src|href|action|formaction|poster|data-src|data-url)=\"` trong body JSON — cả dạng PHP-escaped `\"\/` lẫn unescaped `\"/`, idempotent với path đã có `/forum/`. Attribute không nằm trong danh sách (vd `data-xf-click`) và string không phải attribute không bị đụng. 8 unit-test pass. Server-side only, không cần bump sw.js.
+
+## 2025 — account.css unscoped selector bug + multi-account verified
+
+**Bug:** rule `.memberHeader-buttons a[href^="https://voz.vn"], a[href^="/forum/"]` — selector thứ 2 sau dấu phẩy mất scope `.memberHeader-buttons` → mọi link `/forum/` trong toàn app (kể cả link hướng dẫn thêm tài khoản trong trang login) bị `display:none`. Sửa cả 3 chỗ thành `, .memberHeader-buttons a[href^="/forum/"]`.
+
+**Multi-account verified end-to-end trên prod (2025-11-26):** OAuth thêm tài khoản thứ 2 (salin1810 sau Fioren) upsert đúng; switcher hiển thị 2 accounts với ✓ active / × remove / "+ Thêm tài khoản"; switch click → reload → active đổi, header cập nhật; Đăng xuất account active → drop đúng account đó, account còn lại được promote active.
+
+## 2025 — login instructions split first-login vs add-account
+
+Block hướng dẫn first-login ("Nhấn Đăng nhập với voz.vn → điều hướng tới proxy → đăng nhập → bấm thêm lần nữa") giờ chỉ hiện khi **chưa** có account nào (`addingAccount` false); khi thêm tài khoản chỉ hiện block hướng dẫn multi-account. Viết lại text gọn hơn (3 bước). Bump sw.js v28→v29.
