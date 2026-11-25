@@ -1248,8 +1248,10 @@ img { max-width: 100%; }
 .bbWrapper blockquote.has-quote-source::before { content: none; }
 .bbWrapper .quote-source { display: block; margin-bottom: 4px; font-size: calc(12px * var(--ui-scale)); font-weight: var(--fw-bold); }
 
-/* Long quotes are clipped to 800px with a fade, like voz.vn's .bbCodeBlock--expandable. */
-.bbWrapper blockquote.is-expandable { position: relative; }
+/* Long quotes are clipped to 800px with a fade, like voz.vn's .bbCodeBlock--expandable.
+   clip: the 400px fade overlay must never paint over the sticky header/nav
+   (z-index ties resolve by DOM order, and content comes after chrome). */
+.bbWrapper blockquote.is-expandable { position: relative; overflow: hidden; }
 .bbWrapper blockquote .quote-expand-content { max-height: 800px; overflow: hidden; }
 .bbWrapper blockquote.is-expanded .quote-expand-content { max-height: none; }
 .bbWrapper blockquote .quote-expand-link {
@@ -1258,7 +1260,7 @@ img { max-width: 100%; }
   bottom: 0;
   left: 0;
   height: 400px;
-  z-index: 100;
+  z-index: 2;
   display: flex;
   align-items: flex-end;
   background: linear-gradient(rgba(0, 0, 0, 0) 0%, var(--quote-bg) 80%);

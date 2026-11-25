@@ -1,6 +1,7 @@
 /** Auto-hide chrome. */
 
 import { closeHeaderMenus } from './headerMenus.js';
+import { getAutoHideChrome } from '../lib/settings.js';
 
 // Matches ui/infiniteScroll.js so a jittery trackpad cannot flicker the bars.
 const REVEAL_THRESHOLD = 8;
@@ -49,6 +50,10 @@ function setHidden(next) {
 
 function onScroll() {
   if (!header) return;
+  if (!getAutoHideChrome()) {
+    lastY = window.scrollY;
+    return;
+  }
   const y = window.scrollY;
   if (!armed) {
     lastY = y;
@@ -85,6 +90,10 @@ export function wireChromeAutoHide() {
 
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', measure, { passive: true });
+  // Toggling the setting mid-session unpins immediately (bars are already up).
+  window.addEventListener('voz:settings', (event) => {
+    if (event.detail && event.detail.autoHideChrome === false) setHidden(false);
+  });
 
   // Shortcuts, account block and font swaps change the heights.
   if (typeof ResizeObserver === 'function') {

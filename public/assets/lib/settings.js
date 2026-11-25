@@ -50,6 +50,7 @@ export const emptySettings = () => ({
   pushEnabled: false,
   reactorNames: REACTOR_NAMES_DEFAULT,
   proxyImages: PROXY_IMAGES_DEFAULT,
+  autoHideChrome: AUTO_HIDE_CHROME_DEFAULT,
 });
 
 // Colour scheme for the content area; chrome stays dark in both modes.
@@ -144,6 +145,10 @@ export const REACTOR_NAMES_DEFAULT = false;
 // Lower latency than hitting voz.vn/data.voz.vn directly, but each byte
 // counts against the (free-tier-limited) Vercel bandwidth — off by default.
 export const PROXY_IMAGES_DEFAULT = false;
+
+// Header + nav slide away on scroll-down like mobile voz; some readers want
+// them pinned. On (default) keeps the voz behavior.
+export const AUTO_HIDE_CHROME_DEFAULT = true;
 export const DATA_SAVING_LABELS = {
   auto: 'Tự động theo thiết bị',
   on: 'Luôn bật',
@@ -206,6 +211,7 @@ export function normalizeSettings(raw) {
   out.pushEnabled = raw?.pushEnabled === true;
   out.reactorNames = raw?.reactorNames === true;
   out.proxyImages = raw?.proxyImages === true;
+  out.autoHideChrome = raw?.autoHideChrome !== false; // default-on
   const list = Array.isArray(raw?.navShortcuts) ? raw.navShortcuts : [];
   const seen = new Set();
   for (const item of list.slice(0, MAX_SHORTCUTS)) {
@@ -316,6 +322,16 @@ export function setProxyImages(enabled) {
 
 export function getProxyImages() {
   return loadSettings().proxyImages === true;
+}
+
+export function setAutoHideChrome(enabled) {
+  const settings = loadSettings();
+  settings.autoHideChrome = enabled === true;
+  return saveSettings(settings);
+}
+
+export function getAutoHideChrome() {
+  return loadSettings().autoHideChrome !== false;
 }
 
 export function setInfiniteScroll(mode) {
@@ -441,6 +457,7 @@ export function exportSettingsJson({ albums = [], recent = [], filters = [] } = 
     vozSupport: settings.vozSupport,
     reactorNames: settings.reactorNames,
     proxyImages: settings.proxyImages,
+    autoHideChrome: settings.autoHideChrome,
   };
   // Sticker payload mirrors the userscript backup format for cross-import.
   if (albums.length || recent.length) {

@@ -10,7 +10,7 @@ import {
   loadSettings, addShortcut, updateShortcut, removeShortcut, moveShortcut,
   exportSettingsJson, importSettingsJson, setInfiniteScroll, setDataSaving,
   SCROLL_MODES, SCROLL_LABELS,
-  setTheme, setFont, setFontScale, getFontScale, setImageDownload, setPostScreenshot, setStaticAvatars, setBannedUsers, setVozSupport, setPushEnabled, setReactorNames, setProxyImages,
+  setTheme, setFont, setFontScale, getFontScale, setImageDownload, setPostScreenshot, setStaticAvatars, setBannedUsers, setVozSupport, setPushEnabled, setReactorNames, setProxyImages, setAutoHideChrome,
   BANNED_USER_MODES, BANNED_USERS_LABELS, BANNED_USERS_HELP,
   setFullNumbers, FULL_NUMBERS_MODES, FULL_NUMBERS_LABELS,
   DATA_SAVING_MODES, DATA_SAVING_LABELS, DATA_SAVING_HELP,
@@ -184,7 +184,7 @@ function tabsHtml(active) {
 }
 
 function settingsHtml(active = settingsTabFromHash()) {
-  const { navShortcuts, infiniteScroll, theme, font, postSize, uiSize, imageDownload, postScreenshot, staticAvatars, bannedUsers, fullNumbers, dataSaving, vozSupport, pushEnabled, reactorNames, proxyImages } = loadSettings();
+  const { navShortcuts, infiniteScroll, theme, font, postSize, uiSize, imageDownload, postScreenshot, staticAvatars, bannedUsers, fullNumbers, dataSaving, vozSupport, pushEnabled, reactorNames, proxyImages, autoHideChrome } = loadSettings();
   const albums = getAlbums();
   return `<div class="block settings-block">
       <h1 class="block-header">Cài đặt</h1>
@@ -214,6 +214,14 @@ function settingsHtml(active = settingsTabFromHash()) {
           <h3 class="settings-subhead">Hiện thị số liệu không rút gọn</h3>
           <p class="formHint">voz.vn rút gọn số liệu (13K, 1M) và thời gian tương đối (3 giờ trước). Bật mục này để thấy số đầy đủ và mốc thời gian chính xác.</p>
           ${optionCards('full-numbers', FULL_NUMBERS_MODES, FULL_NUMBERS_LABELS, FULL_NUMBERS_HELP, fullNumbers)}
+          <h3 class="settings-subhead">Thanh trên cùng</h3>
+          <label class="settings-toggle" for="auto-hide-chrome">
+            <span class="settings-toggle-copy">
+              <span class="settings-toggle-name">Tự ẩn thanh trên cùng khi cuộn xuống</span>
+              <span class="option-card-desc">Thanh chứa logo, phím tắt và avatar tự thu lại khi cuộn xuống, hiện lại khi cuộn lên (giống voz.vn mobile). Tắt mục này để luôn hiển thị.</span>
+            </span>
+            <input type="checkbox" id="auto-hide-chrome"${autoHideChrome ? ' checked' : ''}>
+          </label>
           <h3 class="settings-subhead">Ảnh trong bài viết</h3>
           <label class="settings-toggle" for="image-download">
             <span class="settings-toggle-copy">
@@ -1010,6 +1018,11 @@ export function viewSettings() {
     const enabled = event.currentTarget.checked;
     setProxyImages(enabled);
     toast(`Chuyển tiếp ảnh qua Vercel: ${enabled ? 'Bật' : 'Tắt'} — áp dụng cho nội dung tải tiếp theo`);
+  });
+  document.getElementById('auto-hide-chrome')?.addEventListener('change', (event) => {
+    const enabled = event.currentTarget.checked;
+    setAutoHideChrome(enabled);
+    toast(`Tự ẩn thanh trên cùng: ${enabled ? 'Bật' : 'Tắt'}`);
   });
   document.getElementById('voz-support')?.addEventListener('change', (event) => {
     const enabled = event.currentTarget.checked;
