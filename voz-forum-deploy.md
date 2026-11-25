@@ -254,3 +254,7 @@ Ba lỗi rewrite trong `handleForumProxy` (api/handler.js):
 3. **`window.vozSignals={"e":"/xfes.php"}`** inline script — analytics/keep-alive POST escape → 405. Fix: rewrite targeted theo prefix `vozSignals` (không rewrite generic inline script vì sẽ corrupt template HTML).
 
 Không cần bump sw.js — toàn bộ fix server-side. Verify sau deploy trên prod: icon top bar hiện lại, không còn SyntaxError/font reject, switch tab không còn overlay Oops (keep-alive POST `/forum/login/keep-alive` → 200).
+
+## 2025 — JSON overlay rewrite (login form action)
+
+Login trên `/forum/` submit tới `/login/login` (thiếu `/forum`) → 405 redirect error. Nguyên nhân: form login (và mọi overlay XF: lightbox, menu dropdown, reaction…) load qua AJAX `_xfResponseType=json` — response JSON chứa HTML nhúng dạng `"html":{"content":"<form action=\"\/login\/login\" …"}`; rewrite trước chỉ xử lý key `redirect` nên attribute root-relative trong HTML nhúng escape khỏi proxy. Fix (api/handler.js): thêm 2 pass regex rewrite cho `(src|href|action|formaction|poster|data-src|data-url)=\"` trong body JSON — cả dạng PHP-escaped `\"\/` lẫn unescaped `\"/`, idempotent với path đã có `/forum/`. Attribute không nằm trong danh sách (vd `data-xf-click`) và string không phải attribute không bị đụng. 8 unit-test pass. Server-side only, không cần bump sw.js.

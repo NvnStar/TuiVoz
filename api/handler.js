@@ -401,6 +401,17 @@ async function handleForumProxy(request, url) {
       .replace(
         /("(?:redirect|redirectUrl)"\s*:\s*")\/(?!\/|forum\/)/gi,
         `$1${FORUM_VISIBLE_PREFIX}/`
+      )
+      // AJAX overlays (login form, lightbox, …) carry embedded HTML in JSON
+      // strings — attributes like action=\"\/login\/login\" post straight to
+      // the SPA host otherwise. Both PHP-escaped slashes and unescaped forms.
+      .replace(
+        /((?:src|href|action|formaction|poster|data-src|data-url)=\\")\\\/(?!\\\/|forum\\\/)/gi,
+        `$1\\/forum\\/`
+      )
+      .replace(
+        /((?:src|href|action|formaction|poster|data-src|data-url)=\\")\/(?!\/|forum\/)/gi,
+        `$1${FORUM_VISIBLE_PREFIX}/`
       );
   }
   if (contentType.includes('text/html')) {
