@@ -81,7 +81,7 @@ export async function viewLogin() {
           <div class="formHint" style="margin-bottom:12px">
             Bạn đang đăng nhập <b>${state.me.username}</b>. Để thêm tài khoản khác:
             <ol class="login-steps" style="margin-top:8px">
-              <li>Mở <a href="/forum/" target="_blank" rel="noopener">trang voz qua proxy</a>, <b>đăng xuất</b> tài khoản hiện tại và <b>đăng nhập tài khoản mới</b> ở đó.</li>
+              <li>Mở <a href="/forum" target="_blank" rel="noopener">trang chủ voz.vn</a> <b>đăng xuất</b> tài khoản hiện tại và <b>đăng nhập tài khoản mới</b> ở đó.</li>
               <li>Quay lại đây bấm <b>Đăng nhập với voz.vn</b> — voz sẽ uỷ quyền cho tài khoản mới.</li>
             </ol>
             Nếu bỏ qua bước 1, voz sẽ tự uỷ quyền lại đúng tài khoản cũ.
