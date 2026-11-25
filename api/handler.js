@@ -378,7 +378,7 @@ async function handleForumProxy(request, url) {
   }
 
   const contentType = headers.get('Content-Type') || '';
-  const isText = /text\/html|application\/(json|javascript)|text\/javascript/.test(contentType);
+  const isText = /text\/html|text\/css|application\/(json|javascript)|text\/javascript/.test(contentType);
   if (!isText || upstream.status === 204 || upstream.status === 304) {
     return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
   }
@@ -418,7 +418,9 @@ async function handleForumProxy(request, url) {
     // "relative to boardUrl" marker — leave it. fullBase is absolute, covered by
     // the SITE replaceAll above.
     {
-      const configRe = /XF\.config\s*=\s*\{/g;
+      // Real markup is `XF.extendObject(true, XF.config, {…})` (older setups use
+      // `XF.config = {…}`) — accept either so the object actually gets rewritten.
+      const configRe = /XF\.config\s*(?:,|=)\s*\{/g;
       let rebuilt = '';
       let lastIndex = 0;
       let match;
@@ -452,6 +454,35 @@ async function handleForumProxy(request, url) {
       }
       bodyText = rebuilt + bodyText.slice(lastIndex);
     }
+    // window.vozSignals endpoints ("/xfes.php" analytics pings) — targeted rewrite,
+    // a generic root-relative pass over inline scripts would corrupt template HTML.
+    bodyText = bodyText
+      .replace(/(vozSignals\s*=\s*\{[^{}]*?"[a-zA-Z]+"\s*:\s*")\/(?!\/|forum\/)/g, `$1${FORUM_VISIBLE_PREFIX}/`)
+      .replace(/(vozSignals\s*=\s*\{[^{}]*?"[a-zA-Z]+"\s*:\s*")\\\/(?!forum\\\/)/g, `$1\\/forum\\/`);
+  }
+  if (contentType.includes('text/css')) {
+    // voz CSS is served from css.php (a file at site root): relative urls like
+    // `url(../styles/…)` or `url(be-vietnam-pro-400.woff2)` resolve against `/` —
+    // absolutize them upstream-side first, then prefix /forum so they stay in-proxy.
+    // Absolute (http/data:/#) urls are left alone.
+    const cssBase = targetUrl.toString();
+    bodyText = bodyText.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (m, quote, raw) => {
+      const rel = raw.trim();
+      if (!rel || /^(https?:|data:|#|\/\/)/i.test(rel)) return m;
+      let path;
+      if (rel.startsWith('/')) {
+        path = rel;
+      } else {
+        try {
+          const abs = new URL(rel, cssBase);
+          path = abs.pathname + abs.search + abs.hash;
+        } catch {
+          return m;
+        }
+      }
+      if (path.startsWith(FORUM_VISIBLE_PREFIX + '/')) return m;
+      return `url(${quote}${FORUM_VISIBLE_PREFIX}${path}${quote})`;
+    });
   }
   return new Response(bodyText, { status: upstream.status, statusText: upstream.statusText, headers });
 }

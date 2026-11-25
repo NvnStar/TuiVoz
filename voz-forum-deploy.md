@@ -242,3 +242,15 @@ voz.vn có XenForo push sẵn (`service_worker.js`, `enablePush:true`, `pushAppS
 - **Root cause**: XF route-filter rewrite URL thân thiện — `/logout` hiển thị là `/dang-xuat` nhưng redirect nội bộ (303/JSON) dùng route gốc `logout`. POST logout qua overlay trả JSON `{"redirect":"\/"}` hoặc `{"redirect":"\/logout"}` — root-relative path trong JSON không được rewrite → browser thoát khỏi proxy `/forum/`, rơi vào SPA host (ví dụ tuivoz.vercel.app/logout) → route không tồn tại.
 - Fix: trong `handleForumProxy`, với `application/json` rewrite key `redirect`/`redirectUrl` root-relative → prefix `/forum`. PHP `json_encode` escape slash (`\/logout`) nên cần 2 pass: escaped `\\/` trước rồi plain `/` (test bằng temp node script, pass 9 case).
 - Absolute `https://voz.vn/...` trong JSON đã được cover sẵn bởi `replaceAll(SITE, …)`.
+
+## 2025 — /forum/ proxy URL-escape fix (icons, fonts, keep-alive "Oops")
+
+Triệu chứng: icon FontAwesome trong top bar biến mất (mobile+desktop), font bị sanitizer reject, `SyntaxError: expected expression, got '<'`, và overlay **"Oops! We ran into some problems"** xuất hiện khi switch tab rồi quay lại. Tất cả cùng một họ bug: URL root-relative trong `/forum/` escape khỏi proxy, rơi vào SPA fallback (index.html / 405).
+
+Ba lỗi rewrite trong `handleForumProxy` (api/handler.js):
+
+1. **XF.config rewrite không bao giờ match.** Markup thật của XF là `XF.extendObject(true, XF.config, {…})`, không phải `XF.config = {…}` như code giả định → `basePath`, `url.keepAlive` (`/login/keep-alive`), `url.js`, `url.iconInline` và các key escaped `\/js\/…` trong js-map không được rewrite → keep-alive ping trúng SPA host → 405 → XF hiện overlay lỗi; dynamic scripts load index.html → SyntaxError. Fix: regex `XF\.config\s*(?:,|=)\s*\{` chấp nhận cả hai dạng.
+2. **`text/css` thiếu trong isText** → CSS không rewrite. voz serve CSS từ `css.php` (file ở site root) nên cả `url(/styles/…)` root-relative lẫn `url(../styles/…)`/bare-relative đều resolve về `/` của host SPA → escape. Fix: rewrite `url()` trong CSS — absolutize relative theo base upstream trước (giữ nguyên query string `?v=…`), prefix `/forum`; bỏ qua `https:`, `data:`, `#`, `//`, và url rỗng.
+3. **`window.vozSignals={"e":"/xfes.php"}`** inline script — analytics/keep-alive POST escape → 405. Fix: rewrite targeted theo prefix `vozSignals` (không rewrite generic inline script vì sẽ corrupt template HTML).
+
+Không cần bump sw.js — toàn bộ fix server-side. Verify sau deploy trên prod: icon top bar hiện lại, không còn SyntaxError/font reject, switch tab không còn overlay Oops (keep-alive POST `/forum/login/keep-alive` → 200).
