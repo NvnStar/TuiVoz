@@ -9,9 +9,11 @@ export async function loadSession() {
     const res = await auth.status();
     state.loggedIn = !!res.loggedIn;
     state.me = res.me || null;
+    state.accounts = Array.isArray(res.accounts) ? res.accounts : [];
   } catch {
     state.loggedIn = false;
     state.me = null;
+    state.accounts = [];
   }
   renderAccount();
   startForumKeepAlive();

@@ -24,6 +24,21 @@
 .account-menu > a:hover, .account-logout:hover { background: var(--surface-hover); }
 .account-logout { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; border: 0; border-top: 1px solid var(--border); background: transparent; color: var(--link); font: inherit; text-align: left; cursor: pointer; }
 .account-logout svg { width: 16px; height: 16px; }
+
+/* Multi-account switcher inside the account menu. */
+.account-menu { width: 240px; }
+.account-switcher { border-top: 1px solid var(--border); padding: 6px 0 4px; }
+.account-switcher-title { padding: 2px 12px 6px; font-size: calc(11px * var(--ui-scale)); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dimmed, inherit); opacity: 0.7; }
+.account-switch-row { display: flex; align-items: center; gap: 8px; padding: 7px 12px; cursor: pointer; }
+.account-switch-row:hover { background: var(--surface-hover); }
+.account-switch-row .avatar { width: 26px; height: 26px; flex: 0 0 26px; }
+.account-switch-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-switch-check { color: var(--link); font-weight: var(--fw-bold); }
+.account-switch-row.is-switching { opacity: 0.5; pointer-events: none; }
+.account-remove { flex: 0 0 auto; width: 22px; height: 22px; border: 0; border-radius: 3px; background: transparent; color: inherit; opacity: 0.55; font-size: 15px; line-height: 1; cursor: pointer; }
+.account-remove:hover { opacity: 1; background: var(--surface-hover); color: #e02e2e; }
+.account-add { display: block; padding: 7px 12px; font-size: calc(13px * var(--ui-scale)); }
+.account-add:hover { background: var(--surface-hover); }
 .p-header-account { gap: 2px; }
 .p-breadcrumbs:has(.breadcrumb-trail) { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .breadcrumb-trail { min-width: 0; }

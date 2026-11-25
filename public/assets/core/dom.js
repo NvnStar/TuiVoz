@@ -10,6 +10,8 @@ export const modalRoot = document.getElementById('modal-root');
 export const state = {
   me: null,
   loggedIn: false,
+  // All signed-in accounts [{user_id, username, avatar_urls}] for the switcher.
+  accounts: [],
   reactions: null,
   nodes: null,
   config: null,

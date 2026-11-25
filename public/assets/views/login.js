@@ -1,12 +1,10 @@
 /** Login view. */
 
 import { app, state } from '../core/dom.js';
-import { navigate } from '../core/nav.js';
 import { auth } from '../api.js';
 import { setActiveNav, setBreadcrumbs } from '../ui/chrome.js';
 import { setBrandTitle } from '../ui/title.js';
 import { toast } from '../ui/feedback.js';
-import { renderAccount } from '../ui/chrome.js';
 
 const PKCE_KEY = 'voz_pkce';
 const FORUM = '/forum';
@@ -61,9 +59,9 @@ async function finishLogin(code, verifier) {
   clearPkce();
   state.loggedIn = true;
   state.me = data.me;
-  renderAccount();
   toast(`Xin chào ${data.me.username}`);
-  navigate('/');
+  // Hard navigation: the new account list must be re-read from the server.
+  location.href = '/';
 }
 
 export async function viewLogin() {
@@ -73,11 +71,21 @@ export async function viewLogin() {
   if (!state.config) state.config = await auth.config();
   const cfg = state.config;
 
+  const addingAccount = state.loggedIn && state.me;
   app.innerHTML = `
     <div class="login-wrap">
       <div class="block">
-        <div class="block-header">Đăng nhập bằng voz.vn</div>
+        <div class="block-header">${addingAccount ? 'Thêm tài khoản voz.vn' : 'Đăng nhập bằng voz.vn'}</div>
         <div class="block-body block-body--pad">
+          ${addingAccount ? `
+          <div class="formHint" style="margin-bottom:12px">
+            Bạn đang đăng nhập <b>${state.me.username}</b>. Để thêm tài khoản khác:
+            <ol class="login-steps" style="margin-top:8px">
+              <li>Mở <a href="/forum/" target="_blank" rel="noopener">trang voz qua proxy</a>, <b>đăng xuất</b> tài khoản hiện tại và <b>đăng nhập tài khoản mới</b> ở đó.</li>
+              <li>Quay lại đây bấm <b>Đăng nhập với voz.vn</b> — voz sẽ uỷ quyền cho tài khoản mới.</li>
+            </ol>
+            Nếu bỏ qua bước 1, voz sẽ tự uỷ quyền lại đúng tài khoản cũ.
+          </div>` : ''}
           <ol class="login-steps">
             <li>Nhấn <b>Đăng nhập với voz.vn</b>.</li>
             <li>Trình duyệt điều hướng tới trang proxy voz.vn của vercel.</li>
@@ -85,7 +93,7 @@ export async function viewLogin() {
             <li>Sau khi đăng nhập xong quay trở lại trang chủ. Bấm đăng thêm một lần nữa. Sẽ đăng nhập được</li>
           </ol>
           <div class="formRow">
-            <button class="button button--primary" type="button" id="oauth-login">Đăng nhập với voz.vn</button>
+            <button class="button button--primary" type="button" id="oauth-login">${addingAccount ? 'Đăng nhập thêm tài khoản' : 'Đăng nhập với voz.vn'}</button>
           </div>
           <div class="formError" id="login-error" hidden></div>
 

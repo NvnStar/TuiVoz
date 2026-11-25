@@ -151,6 +151,26 @@ function utilityMenus() {
     menuButton('search', 'Tìm kiếm', ICON_SEARCH, `<form id="header-search" class="quick-search"><input class="input" type="search" name="q" placeholder="Từ khoá…" aria-label="Từ khoá"><input class="input" name="member" placeholder="Bởi: tên thành viên" aria-label="Bởi thành viên"><small class="u-dimmed">Nhập từ khoá hoặc thành viên. Kết hợp bộ lọc: dùng tìm nâng cao.</small><button class="button button--primary" type="submit">Tìm kiếm</button><a href="/forum/search/" target="_blank" rel="noopener">Tìm kiếm nâng cao…</a><a href="/search">Trang tìm kiếm</a></form>`);
 }
 
+function accountSwitcherHtml(me) {
+  const accounts = Array.isArray(state.accounts) ? state.accounts : [];
+  if (!accounts.length) return '';
+  const rows = accounts.map((acc) => {
+    const isActive = Number(acc.user_id) === Number(me.user_id);
+    return `<div class="account-switch-row${isActive ? ' is-active' : ''}" data-switch-user="${acc.user_id}" role="button" tabindex="0">
+      <span class="avatar">${avatarMarkup(acc, 's')}</span>
+      <span class="account-switch-name">${esc(acc.username || `#${acc.user_id}`)}</span>
+      ${isActive
+        ? '<span class="account-switch-check" aria-label="Đang dùng">✓</span>'
+        : `<button class="account-remove" type="button" data-remove-user="${acc.user_id}" title="Đăng xuất tài khoản này" aria-label="Đăng xuất ${esc(acc.username || '')}">×</button>`}
+    </div>`;
+  }).join('');
+  return `<div class="account-switcher">
+    <div class="account-switcher-title">Chuyển tài khoản</div>
+    ${rows}
+    <a class="account-add" href="/login">+ Thêm tài khoản</a>
+  </div>`;
+}
+
 export function renderAccount() {
   if (state.loggedIn && state.me) {
     const me = state.me;
@@ -158,21 +178,66 @@ export function renderAccount() {
     // still use the real account.
     const shown = displayUser(me);
     accountEl.innerHTML = `
-      <div class="header-menu-wrap"><button class="account-toggle header-icon" type="button" data-header-menu="account" aria-expanded="false" aria-controls="header-menu-account"><span class="avatar">${avatarMarkup(shown, 's')}</span><span class="username">${esc(shown.username)}</span></button><section class="header-menu account-menu" id="header-menu-account" aria-label="Tài khoản" hidden><h2>${esc(shown.username)}</h2><a href="${userPath(me)}">Hồ sơ</a><a href="/bookmarks">Đánh dấu</a>      <a href="/watched">Theo dõi</a><a href="/cai-dat-tuivoz">Cài đặt</a><button class="account-logout" id="logout-btn" type="button">${ICON_POWER} Đăng xuất</button></section></div>
+      <div class="header-menu-wrap"><button class="account-toggle header-icon" type="button" data-header-menu="account" aria-expanded="false" aria-controls="header-menu-account"><span class="avatar">${avatarMarkup(shown, 's')}</span><span class="username">${esc(shown.username)}</span></button><section class="header-menu account-menu" id="header-menu-account" aria-label="Tài khoản" hidden><h2>${esc(shown.username)}</h2><a href="${userPath(me)}">Hồ sơ</a><a href="/bookmarks">Đánh dấu</a>      <a href="/watched">Theo dõi</a><a href="/cai-dat-tuivoz">Cài đặt</a>${accountSwitcherHtml(me)}<button class="account-logout" id="logout-btn" type="button">${ICON_POWER} Đăng xuất</button></section></div>
             ${utilityMenus()}
     `;
     refreshUnreadCounts();
     const btn = document.getElementById('logout-btn');
     if (btn) {
       btn.addEventListener('click', async () => {
-        await auth.logout();
+        // Logout drops the active account only; the server promotes a survivor.
+        const res = await auth.logout(me.user_id);
+        if (res && res.loggedOut === false) {
+          toast('Đã đăng xuất — chuyển sang tài khoản còn lại');
+          location.reload();
+          return;
+        }
         state.loggedIn = false;
         state.me = null;
+        state.accounts = [];
         renderAccount();
         toast('Đã đăng xuất');
         navigate('/');
       });
     }
+    // Account switcher: click a row to switch, × to drop that account.
+    const menu = document.getElementById('header-menu-account');
+    menu?.querySelectorAll('[data-switch-user]').forEach((row) => {
+      const userId = Number(row.dataset.switchUser);
+      if (userId === Number(me.user_id)) return;
+      const switchTo = async () => {
+        row.classList.add('is-switching');
+        const { ok, data } = await auth.switchAccount(userId);
+        if (!ok) {
+          row.classList.remove('is-switching');
+          toast(data?.detail || 'Không chuyển được tài khoản — có thể cần đăng nhập lại.', true);
+          return;
+        }
+        toast(`Đã chuyển sang ${data.me.username}`);
+        // Full reload: every cached view (unread counts, reactions…) is per-user.
+        location.reload();
+      };
+      row.addEventListener('click', (event) => {
+        if (event.target.closest('.account-remove')) return;
+        switchTo();
+      });
+      row.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          switchTo();
+        }
+      });
+    });
+    menu?.querySelectorAll('[data-remove-user]').forEach((removeBtn) => {
+      removeBtn.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        const userId = Number(removeBtn.dataset.removeUser);
+        await auth.logout(userId);
+        state.accounts = state.accounts.filter((acc) => Number(acc.user_id) !== userId);
+        toast('Đã đăng xuất tài khoản đó');
+        renderAccount();
+      });
+    });
   } else {
     accountEl.innerHTML = `<a class="button button--small button--primary" href="/login">Đăng nhập</a>${utilityMenus()}`;
   }

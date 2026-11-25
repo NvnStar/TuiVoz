@@ -120,19 +120,76 @@ function getCookie(request, name) {
   return null;
 }
 
-function sessionCookie(tokens, maxAge = SESSION_MAX_AGE) {
-  const value = tokens ? b64uEncode(JSON.stringify(tokens)) : '';
+function sessionCookie(session, maxAge = SESSION_MAX_AGE) {
+  const value = session ? b64uEncode(JSON.stringify(session)) : '';
   return `${SESSION_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+}
+
+// ── Multi-account session ─────────────────────────────────────────────
+// Cookie shape: { active: "<userId>", accounts: { "<userId>": tokens+identity } }
+// Legacy single-account cookies ({ accessToken, ... }) are migrated on the
+// fly: stored under the synthetic "_legacy" key until fetchMe tells us the
+// real user id, at which point they are re-keyed.
+
+const LEGACY_KEY = '_legacy';
+const MAX_ACCOUNTS = 8;
+// Browsers silently drop oversized cookies; stay well under the 4KB limit.
+const COOKIE_SIZE_LIMIT = 3800;
+
+function migrateLegacy(parsed) {
+  if (!parsed || typeof parsed !== 'object') return null;
+  if (parsed.accounts && typeof parsed.accounts === 'object') return parsed;
+  if (!parsed.accessToken) return null;
+  return { active: LEGACY_KEY, accounts: { [LEGACY_KEY]: parsed } };
 }
 
 function readSession(request) {
   const raw = getCookie(request, SESSION_COOKIE);
   if (!raw) return null;
   try {
-    const tokens = JSON.parse(b64uDecode(raw));
-    return tokens && tokens.accessToken ? tokens : null;
+    const session = migrateLegacy(JSON.parse(b64uDecode(raw)));
+    if (!session || !session.accounts[session.active]) return null;
+    return session;
   } catch {
     return null;
+  }
+}
+
+function activeTokens(session) {
+  return session?.accounts?.[session.active] || null;
+}
+
+// Trimmed identity cached per account so the switcher renders without
+// extra API calls. Only small avatars: keeps the cookie small.
+function slimIdentity(user) {
+  if (!user) return {};
+  return {
+    username: user.username || '',
+    avatar_urls: { s: user.avatar_urls?.s || '', m: user.avatar_urls?.m || '' },
+  };
+}
+
+function upsertAccount(session, userId, tokens, user) {
+  if (!session) session = { active: null, accounts: {} };
+  const key = String(userId);
+  const existing = session.accounts[key] || {};
+  session.accounts[key] = {
+    ...tokens,
+    ...(tokens.refreshToken ? {} : { refreshToken: existing.refreshToken || '' }),
+    ...slimIdentity(user),
+  };
+  // Legacy migration: the tokens being replaced belong to the same person.
+  if (session.accounts[LEGACY_KEY] && key !== LEGACY_KEY) delete session.accounts[LEGACY_KEY];
+  if (session.active === LEGACY_KEY) session.active = key;
+  return session;
+}
+
+// Cookie too big → refuse to add; rotating out arbitrary accounts would be worse.
+function sessionFitsCookie(session) {
+  try {
+    return JSON.stringify(session).length <= COOKIE_SIZE_LIMIT;
+  } catch {
+    return false;
   }
 }
 
@@ -400,7 +457,7 @@ function cacheControlFor(method, sub, upstreamHeaders, headers) {
   return 'private, no-store, max-age=0';
 }
 
-async function handleProxy(request, url, tokens) {
+async function handleProxy(request, url, session) {
   const sub = url.pathname.replace(/^\/api\/xf/, '') || '/';
   const target = `${API_BASE}${sub}${url.search}`;
 
@@ -408,38 +465,44 @@ async function handleProxy(request, url, tokens) {
   const hasBody = !['GET', 'HEAD'].includes(method);
   const bodyBuffer = hasBody ? await request.arrayBuffer() : null;
 
-  const buildHeaders = (activeTokens) => {
+  const buildHeaders = (t) => {
     const headers = new Headers();
     headers.set('User-Agent', UA);
     headers.set('Accept', 'application/json');
     const contentType = request.headers.get('content-type');
     if (contentType) headers.set('Content-Type', contentType);
-    if (activeTokens && activeTokens.accessToken) {
-      headers.set('Authorization', `Bearer ${activeTokens.accessToken}`);
+    if (t && t.accessToken) {
+      headers.set('Authorization', `Bearer ${t.accessToken}`);
     } else {
       headers.set('XF-Api-Key', GUEST_KEY);
     }
     return headers;
   };
 
-  const send = (activeTokens) =>
+  const send = (t) =>
     fetch(target, {
       method,
-      headers: buildHeaders(activeTokens),
+      headers: buildHeaders(t),
       body: bodyBuffer && bodyBuffer.byteLength ? bodyBuffer : undefined,
       redirect: 'manual',
     });
 
-  let activeTokens = tokens;
-  let upstream = await send(activeTokens);
+  let tokens = activeTokens(session);
+  let upstream = await send(tokens);
   let refreshed = null;
 
-  if (upstream.status === 401 && activeTokens) {
-    refreshed = await refreshTokens(activeTokens);
+  if (upstream.status === 401 && tokens) {
+    refreshed = await refreshTokens(tokens);
     if (refreshed) {
-      activeTokens = refreshed;
-      upstream = await send(activeTokens);
+      tokens = refreshed;
+      upstream = await send(tokens);
     }
+  }
+
+  // Persist refreshed tokens back into the correct account slot.
+  if (refreshed && session) {
+    const key = session.active;
+    session.accounts[key] = { ...session.accounts[key], ...refreshed };
   }
 
   const headers = new Headers();
@@ -452,7 +515,7 @@ async function handleProxy(request, url, tokens) {
   }
   // Sliding session: re-issue the cookie on every authenticated call so the
   // 30-day Max-Age renews like XenForo's rolling session (avoid idle expiry).
-  if (refreshed || activeTokens) headers.append('Set-Cookie', sessionCookie(refreshed || activeTokens));
+  if (session && sessionFitsCookie(session)) headers.append('Set-Cookie', sessionCookie(session));
 
   return new Response(upstream.body, { status: upstream.status, headers });
 }
@@ -610,8 +673,9 @@ export default async function handler(request) {
     const id = String(url.searchParams.get('id') || '').replace(/\D/g, '');
     if (!id) return json({ error: 'missing_id' }, { status: 400, headers: corsHeaders(request) });
     const session = readSession(request);
+    const tokens = activeTokens(session);
     const metaHeaders = { 'User-Agent': UA, Accept: 'application/json' };
-    if (session && session.accessToken) metaHeaders.Authorization = `Bearer ${session.accessToken}`;
+    if (tokens && tokens.accessToken) metaHeaders.Authorization = `Bearer ${tokens.accessToken}`;
     else metaHeaders['XF-Api-Key'] = GUEST_KEY;
     const meta = await fetch(`${API_BASE}/attachments/${id}/`, { headers: metaHeaders }).then((r) => r.ok ? r.json() : null).catch(() => null);
     const attachment = meta?.attachment;
@@ -673,18 +737,31 @@ export default async function handler(request) {
   }
 
   if (path === '/api/oauth/status') {
-    const tokens = readSession(request);
-    if (!tokens) return json({ loggedIn: false, me: null });
-    let active = tokens;
-    if (active.expiresAt && active.expiresAt - Date.now() < 60_000) {
-      const refreshed = await refreshTokens(active);
-      if (refreshed) active = refreshed;
+    const session = readSession(request);
+    if (!session) return json({ loggedIn: false, me: null, accounts: [] });
+    let tokens = activeTokens(session);
+    if (tokens.expiresAt && tokens.expiresAt - Date.now() < 60_000) {
+      const refreshed = await refreshTokens(tokens);
+      if (refreshed) {
+        tokens = refreshed;
+        session.accounts[session.active] = { ...session.accounts[session.active], ...refreshed };
+      }
     }
-    const me = await fetchMe(active);
+    const me = await fetchMe(tokens);
+    // Legacy migration finalises here: re-key the slot under the real user id.
+    if (me && me.user_id > 0 && session.active === LEGACY_KEY) {
+      upsertAccount(session, me.user_id, tokens, me);
+    } else if (me && me.user_id > 0 && session.accounts[session.active]) {
+      // Keep the cached identity (name/avatar) fresh for the switcher.
+      session.accounts[session.active] = { ...session.accounts[session.active], ...slimIdentity(me) };
+    }
     const headers = new Headers();
     // Always re-issue: sliding 30-day expiry, same as the /api/xf proxy path.
-    headers.append('Set-Cookie', sessionCookie(active));
-    return json({ loggedIn: !!me && me.user_id > 0, me }, { headers });
+    if (sessionFitsCookie(session)) headers.append('Set-Cookie', sessionCookie(session));
+    const accounts = Object.entries(session.accounts)
+      .filter(([id]) => id !== LEGACY_KEY)
+      .map(([id, acc]) => ({ user_id: Number(id), username: acc.username || '', avatar_urls: acc.avatar_urls || {} }));
+    return json({ loggedIn: !!me && me.user_id > 0, me, accounts }, { headers });
   }
 
   if (path === '/api/oauth/exchange' && request.method === 'POST') {
@@ -704,14 +781,64 @@ export default async function handler(request) {
       return json(result, { status: 400, headers: corsHeaders(request) });
     }
     const me = await fetchMe(result.tokens);
+    if (!me || !me.user_id) {
+      return json({ error: 'exchange_failed', detail: 'Không đọc được thông tin tài khoản sau khi đổi token.' }, { status: 400, headers: corsHeaders(request) });
+    }
+    let session = readSession(request) || { active: null, accounts: {} };
+    if (!session.accounts[me.user_id] && Object.keys(session.accounts).length >= MAX_ACCOUNTS) {
+      return json({ error: 'too_many_accounts', detail: `Tối đa ${MAX_ACCOUNTS} tài khoản.` }, { status: 400, headers: corsHeaders(request) });
+    }
+    upsertAccount(session, me.user_id, result.tokens, me);
+    session.active = String(me.user_id);
+    if (!sessionFitsCookie(session)) {
+      return json({ error: 'too_many_accounts', detail: 'Cookie phiên đầy — hãy đăng xuất bớt tài khoản.' }, { status: 400, headers: corsHeaders(request) });
+    }
     const headers = new Headers(corsHeaders(request));
-    headers.append('Set-Cookie', sessionCookie(result.tokens));
+    headers.append('Set-Cookie', sessionCookie(session));
+    return json({ ok: true, me }, { headers });
+  }
+
+  if (path === '/api/oauth/switch' && request.method === 'POST') {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'invalid_body' }, { status: 400, headers: corsHeaders(request) });
+    }
+    const key = String(body.user_id || '');
+    const session = readSession(request);
+    if (!session || !session.accounts[key]) {
+      return json({ error: 'account_not_found' }, { status: 404, headers: corsHeaders(request) });
+    }
+    session.active = key;
+    let tokens = session.accounts[key];
+    if (tokens.expiresAt && tokens.expiresAt - Date.now() < 60_000) {
+      const refreshed = await refreshTokens(tokens);
+      if (refreshed) {
+        tokens = { ...session.accounts[key], ...refreshed };
+        session.accounts[key] = tokens;
+      }
+    }
+    const me = await fetchMe(tokens);
+    if (!me || !me.user_id) {
+      return json({ error: 'account_expired', detail: 'Phiên tài khoản này đã hết hạn — cần đăng nhập lại.' }, { status: 401, headers: corsHeaders(request) });
+    }
+    session.accounts[key] = { ...session.accounts[key], ...slimIdentity(me) };
+    const headers = new Headers(corsHeaders(request));
+    if (sessionFitsCookie(session)) headers.append('Set-Cookie', sessionCookie(session));
     return json({ ok: true, me }, { headers });
   }
 
   if (path === '/api/oauth/logout' && request.method === 'POST') {
-    const tokens = readSession(request);
-    if (tokens && tokens.refreshToken) {
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      // empty body = logout everything
+    }
+    const session = readSession(request);
+    const revoke = async (tokens) => {
+      if (!tokens || !tokens.refreshToken) return;
       try {
         await fetch(`${API_BASE}/oauth2/revoke`, {
           method: 'POST',
@@ -728,10 +855,31 @@ export default async function handler(request) {
       } catch {
         // revoke is best-effort; the cookie is cleared regardless
       }
+    };
+    const headers = new Headers(corsHeaders(request));
+
+    const key = body && body.user_id ? String(body.user_id) : null;
+    if (key && session && session.accounts[key]) {
+      // Per-account logout: drop just this account, promote a survivor.
+      await revoke(session.accounts[key]);
+      delete session.accounts[key];
+      if (session.active === key) {
+        session.active = Object.keys(session.accounts)[0] || null;
+      }
+      if (!session.active) {
+        headers.append('Set-Cookie', sessionCookie(null, 0));
+        return json({ ok: true, loggedOut: true }, { headers });
+      }
+      if (sessionFitsCookie(session)) headers.append('Set-Cookie', sessionCookie(session));
+      return json({ ok: true, loggedOut: false, active: session.active }, { headers });
     }
-    const headers = new Headers();
+
+    // No user_id: nuke everything like before.
+    if (session) {
+      for (const acc of Object.values(session.accounts)) await revoke(acc);
+    }
     headers.append('Set-Cookie', sessionCookie(null, 0));
-    return json({ ok: true }, { headers });
+    return json({ ok: true, loggedOut: true }, { headers });
   }
 
   if (path === '/api/forum' || path.startsWith('/api/forum/')) {

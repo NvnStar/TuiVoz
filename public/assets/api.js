@@ -160,8 +160,23 @@ export const auth = {
     });
     return { ok: res.ok, data: await res.json() };
   },
-  logout: async () => {
-    await fetch('/api/oauth/logout', { method: 'POST', credentials: 'same-origin' });
+  switchAccount: async (userId) => {
+    const res = await fetch('/api/oauth/switch', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId }),
+    });
+    return { ok: res.ok, data: await res.json() };
+  },
+  logout: async (userId) => {
+    const res = await fetch('/api/oauth/logout', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userId ? { user_id: userId } : {}),
+    });
+    return res.ok ? res.json().catch(() => ({})) : {};
   },
   config: async () => {
     const res = await fetch('/api/config');
