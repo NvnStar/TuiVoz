@@ -389,6 +389,20 @@ async function handleForumProxy(request, url) {
   bodyText = bodyText
     .replaceAll(SITE, proxyOrigin + FORUM_VISIBLE_PREFIX)
     .replaceAll(`//voz.vn`, `//${proxyHost}${FORUM_VISIBLE_PREFIX}`);
+  if (contentType.includes('application/json')) {
+    // XF AJAX replies carry "redirect":"<path>" (logout/login/confirm flows).
+    // Root-relative paths escape the proxy — the browser lands on the bare SPA.
+    // PHP json_encode escapes slashes: values look like "\/logout".
+    bodyText = bodyText
+      .replace(
+        /("(?:redirect|redirectUrl)"\s*:\s*")\\\/(?!\\\/|forum\\\/)/gi,
+        `$1\\/forum\\/`
+      )
+      .replace(
+        /("(?:redirect|redirectUrl)"\s*:\s*")\/(?!\/|forum\/)/gi,
+        `$1${FORUM_VISIBLE_PREFIX}/`
+      );
+  }
   if (contentType.includes('text/html')) {
     bodyText = bodyText
       // Base tag fixes relative URLs (index.php?…, css/xf/…); root-relative need rewrites.

@@ -225,3 +225,20 @@ voz.vn có XenForo push sẵn (`service_worker.js`, `enablePush:true`, `pushAppS
 - Key `anonHideReply` (bool, default false): emptySettings + normalize + `setAnonHideReply()` + export payload.
 - `lib/anon.js` export `hideQuickReply()` = `anonMode==='hide' && anonHideReply===true`; `views/thread.js` render `#reply-block` rỗng khi true (tắt hẳn cả nhánh "không thể trả lời" — không lộ gì).
 - Thread không re-render live khi đổi setting — chỉ áp dụng lần load thread sau (đủ cho use case).
+
+## 2025 — Multi-account login + JSON redirect fix
+
+### Multi-account (cookie format mới)
+- Cookie `voz_session` giờ là `{ active: "<userId>", accounts: { "<userId>": tokens+identity } }` thay vì tokens phẳng. Legacy cookie auto-migrate: key `_legacy` → re-key sang user_id thật khi `/oauth/status` fetchMe thành công.
+- Mỗi account slot cache thêm `username` + `avatar_urls` (chỉ size s/m — giữ cookie < 3800 bytes, tránh browser drop cookie > 4KB). `MAX_ACCOUNTS = 8`.
+- Endpoints: `/api/oauth/switch` POST `{user_id}` → set active, refresh nếu sắp hết hạn, trả me. `/api/oauth/logout` POST `{user_id}` → xoá 1 account + revoke token riêng, promote account đầu còn lại; không body → logout hết (revoke từng account). `/exchange` upsert vào map + set active (login lại cùng account = update tokens). `/status` trả thêm `accounts: [{user_id, username, avatar_urls}]`.
+- `handleProxy` nhận session object: refresh → merge tokens vào slot active → reissue cookie full session (sliding như cũ, nhưng chỉ nếu `sessionFitsCookie`).
+- Client: `state.accounts` trong dom.js; switcher trong account menu (`chrome.js`) — click row switch (sau đó `location.reload()` vì unread/reactions per-user), nút × xoá account không-active, link "+ Thêm tài khoản" → /login. Nút Đăng xuất chính giờ logout **active account thôi** (promote survivor + reload), không phải xoá hết.
+- `auth.logout(userId)` trả `{loggedOut: bool}`; `auth.switchAccount(userId)` trả `{ok, me}`.
+- `login.js`: khi đã login hiện hướng dẫn "mở /forum/ → đăng xuất → đăng nhập account mới ở đó → quay lại bấm Đăng nhập" (voz authorize auto-approve theo xf_session đang có). `finishLogin` dùng `location.href='/'` thay navigate (hard reload đọc lại accounts).
+- **Push notification**: vẫn gắn account lúc subscribe — switch account không đổi push sub.
+
+### JSON redirect escape fix (lỗi /logout trên host gốc)
+- **Root cause**: XF route-filter rewrite URL thân thiện — `/logout` hiển thị là `/dang-xuat` nhưng redirect nội bộ (303/JSON) dùng route gốc `logout`. POST logout qua overlay trả JSON `{"redirect":"\/"}` hoặc `{"redirect":"\/logout"}` — root-relative path trong JSON không được rewrite → browser thoát khỏi proxy `/forum/`, rơi vào SPA host (ví dụ tuivoz.vercel.app/logout) → route không tồn tại.
+- Fix: trong `handleForumProxy`, với `application/json` rewrite key `redirect`/`redirectUrl` root-relative → prefix `/forum`. PHP `json_encode` escape slash (`\/logout`) nên cần 2 pass: escaped `\\/` trước rồi plain `/` (test bằng temp node script, pass 9 case).
+- Absolute `https://voz.vn/...` trong JSON đã được cover sẵn bởi `replaceAll(SITE, …)`.
