@@ -5,6 +5,14 @@ export const VOZ_ORIGIN = 'https://voz.vn';
 // Path prefixes the local router understands; anything else stays on voz.vn.
 const LOCAL_PREFIXES = ['/t/', '/f/', '/s/', '/u/', '/p/', '/search', '/new'];
 
+// Only the exact /whats-new[/] and /whats-new/posts paths fold into the
+// local /new feed; other subpages (latest-activity, profile-posts) have no
+// API equivalent and stay normal /forum/ proxy links.
+const WHATS_NEW_MAP = new Map([
+  ['/whats-new', '/new'],
+  ['/whats-new/posts', '/new'],
+]);
+
 // Web-only XenForo routes; the SPA has no local route — keep them for /forum/.
 const VOZ_ONLY_SUFFIXES = ['/ignore', '/unignore', '/report', '/warn', '/follow', '/unfollow'];
 
@@ -27,6 +35,8 @@ export function localPathFor(value) {
   if (url.origin !== VOZ_ORIGIN) return null;
   const path = url.pathname;
   if (VOZ_ONLY_SUFFIXES.some((suffix) => path.endsWith(suffix))) return null;
+  const mapped = WHATS_NEW_MAP.get(path.replace(/\/+$/, ''));
+  if (mapped) return `${mapped}${url.search}${url.hash}`;
   if (!LOCAL_PREFIXES.some((prefix) => path.startsWith(prefix))) return null;
   return `${path}${url.search}${url.hash}`;
 }

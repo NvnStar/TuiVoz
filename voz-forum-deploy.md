@@ -77,7 +77,7 @@ TuiVoz/
 | `jumpToAnchor.js` | Scroll tới `#post-N` dưới sticky header; bù ảnh tải muộn; `revealFilteredBlock` cho post bị ẩn. |
 | `media.js` | Embed YouTube/TikTok/Facebook/Reddit/Twitter/SoundCloud/Douyin/Flickr. |
 | `pikUpload.js` | Upload ảnh pik.vn: resize ≤1920px JPEG 0.85, song song 3 luồng → `[IMG]`. |
-| `postLinks.js` | Rewrite link voz.vn → URL SPA (local route) hoặc `/forum/…` (XenForo-only route, qua proxy giữ session). |
+| `postLinks.js` | Rewrite link voz.vn → URL SPA (local route) hoặc `/forum/…` (XenForo-only route, qua proxy giữ session). `/whats-new`+`/whats-new/posts` exact → `/new` (`WHATS_NEW_MAP`); `/whats-new/latest-activity`/`profile-posts` không có API → link `/forum/…` proxy thường (full nav), không cần route SPA riêng. |
 | `postScreenshot.js` | `renderPostPng` (SVG foreignObject, proxy ảnh → dataURI chống taint; `data:` SVG cho Chrome) + popup Sao chép / Chia sẻ / Tải xuống (Web Share L2; Firefox không share file → fallback URL). |
 | `prefix.js` / `userBadges.js` | Màu/nhãn prefix thread; huy hiệu member. |
 | `quotes.js` / `spoilers.js` / `signature.js` | Collapse quote >800px; toggle spoiler; render chữ ký. |
