@@ -51,6 +51,10 @@ export const emptySettings = () => ({
   reactorNames: REACTOR_NAMES_DEFAULT,
   proxyImages: PROXY_IMAGES_DEFAULT,
   autoHideChrome: AUTO_HIDE_CHROME_DEFAULT,
+  mergeShortcuts: MERGE_SHORTCUTS_DEFAULT,
+  anonMode: ANON_DEFAULT,
+  anonMimic: null,
+  anonHideReply: false,
 });
 
 // Colour scheme for the content area; chrome stays dark in both modes.
@@ -149,6 +153,40 @@ export const PROXY_IMAGES_DEFAULT = false;
 // Header + nav slide away on scroll-down like mobile voz; some readers want
 // them pinned. On (default) keeps the voz behavior.
 export const AUTO_HIDE_CHROME_DEFAULT = true;
+
+// Off: shortcuts live in their own bar under the header. On: they inline
+// beside the account icons (logo hidden), overflow folds into a "…" menu.
+export const MERGE_SHORTCUTS_DEFAULT = true;
+
+// Anonymous mode: display-only camouflage for the own-account avatar/name
+// in the top bar and the thread quick-reply column. `mimic` additionally
+// uses the identity stored in `anonMimic` (user_id/username/avatar_urls).
+export const ANON_MODES = ['off', 'hide', 'mimic'];
+export const ANON_DEFAULT = 'off';
+export const ANON_LABELS = {
+  off: 'Tắt',
+  hide: 'Bật',
+  mimic: 'Tự chọn',
+};
+export const ANON_HELP = {
+  off: 'Hiện đúng tên và ảnh đại diện tài khoản của bạn.',
+  hide: 'Ẩn tên và ảnh đại diện của bạn ở thanh trên cùng và cột trả lời nhanh trong chủ đề.',
+  mimic: 'Dùng tên và ảnh đại diện của một thành viên khác thay cho của bạn ở hai vị trí trên. Dán liên kết hồ sơ hoặc nhập tên thành viên vào ô bên dưới.',
+};
+
+function normalizeAnonMimic(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const userId = Number(raw.user_id);
+  const username = String(raw.username ?? '').trim().slice(0, 60);
+  if (!userId || !username) return null;
+  const urls = raw.avatar_urls && typeof raw.avatar_urls === 'object' ? raw.avatar_urls : {};
+  const avatarUrls = {};
+  for (const key of ['xxs', 'xs', 's', 'm', 'l', 'o']) {
+    const value = String(urls[key] ?? '');
+    if (/^https:\/\//.test(value)) avatarUrls[key] = value;
+  }
+  return { user_id: userId, username, avatar_urls: avatarUrls };
+}
 export const DATA_SAVING_LABELS = {
   auto: 'Tự động theo thiết bị',
   on: 'Luôn bật',
@@ -212,6 +250,10 @@ export function normalizeSettings(raw) {
   out.reactorNames = raw?.reactorNames === true;
   out.proxyImages = raw?.proxyImages === true;
   out.autoHideChrome = raw?.autoHideChrome !== false; // default-on
+  out.mergeShortcuts = raw?.mergeShortcuts !== false; // default-on
+  out.anonMode = ANON_MODES.includes(raw?.anonMode) ? raw.anonMode : ANON_DEFAULT;
+  out.anonMimic = normalizeAnonMimic(raw?.anonMimic);
+  out.anonHideReply = raw?.anonHideReply === true;
   const list = Array.isArray(raw?.navShortcuts) ? raw.navShortcuts : [];
   const seen = new Set();
   for (const item of list.slice(0, MAX_SHORTCUTS)) {
@@ -332,6 +374,34 @@ export function setAutoHideChrome(enabled) {
 
 export function getAutoHideChrome() {
   return loadSettings().autoHideChrome !== false;
+}
+
+export function setMergeShortcuts(enabled) {
+  const settings = loadSettings();
+  settings.mergeShortcuts = enabled === true;
+  return saveSettings(settings);
+}
+
+export function getMergeShortcuts() {
+  return loadSettings().mergeShortcuts !== false;
+}
+
+export function setAnonMode(mode) {
+  const settings = loadSettings();
+  settings.anonMode = ANON_MODES.includes(mode) ? mode : ANON_DEFAULT;
+  return saveSettings(settings);
+}
+
+export function setAnonMimic(user) {
+  const settings = loadSettings();
+  settings.anonMimic = normalizeAnonMimic(user);
+  return saveSettings(settings);
+}
+
+export function setAnonHideReply(on) {
+  const settings = loadSettings();
+  settings.anonHideReply = on === true;
+  return saveSettings(settings);
 }
 
 export function setInfiniteScroll(mode) {
@@ -458,6 +528,10 @@ export function exportSettingsJson({ albums = [], recent = [], filters = [] } = 
     reactorNames: settings.reactorNames,
     proxyImages: settings.proxyImages,
     autoHideChrome: settings.autoHideChrome,
+    mergeShortcuts: settings.mergeShortcuts,
+    anonMode: settings.anonMode,
+    anonMimic: settings.anonMimic,
+    anonHideReply: settings.anonHideReply,
   };
   // Sticker payload mirrors the userscript backup format for cross-import.
   if (albums.length || recent.length) {

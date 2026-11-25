@@ -58,6 +58,61 @@
   font-weight: var(--fw-bold);
 }
 
+/* merged shortcuts strip (setting mergeShortcuts): shortcuts share the
+   header line with the account icons; nav bar + logo disappear entirely.
+   Overflowing items are reached by scrolling the strip horizontally —
+   touch-swipe on mobile, wheel/shift+wheel on desktop (chrome.js wires
+   vertical-wheel translation; scrollbar hidden for a cleaner strip). */
+.p-header-shortcuts { display: none; }
+:root.shortcuts-merged .p-header-logo { display: none; }
+:root.shortcuts-merged .p-nav { display: none; }
+:root.shortcuts-merged .p-header-shortcuts {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.p-header-shortcuts ul {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  /* must shrink below content width or overflow never triggers */
+  flex: 1 1 0;
+  min-width: 0;
+  /* fade the right edge when more items hide beyond it */
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+.p-header-shortcuts ul::-webkit-scrollbar { display: none; }
+/* mouse drag-to-scroll affordance (touch keeps the default cursor behavior) */
+@media (hover: hover) {
+  .p-header-shortcuts ul { cursor: grab; }
+  .p-header-shortcuts ul.is-dragging { cursor: grabbing; user-select: none; }
+  .p-header-shortcuts ul.is-dragging a { pointer-events: none; }
+}
+.p-header-shortcuts li { flex: 0 0 auto; min-width: 0; }
+.p-header-shortcuts ul a {
+  display: block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--nav-fg);
+  font-size: calc(13px * var(--ui-scale));
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.p-header-shortcuts ul a:hover { color: var(--on-dark); background: var(--overlay-hairline); }
+
 /* nav */
 .p-nav {
   position: sticky;
@@ -130,6 +185,11 @@
 .p-breadcrumbs a { color: var(--nav-fg); }
 .p-breadcrumbs a:hover { color: var(--on-dark); }
 .p-breadcrumbs .sep { margin: 0 6px; color: var(--chrome-dimmed); }
+/* merged mode drops the nav bar, so the default 14px+10px of dead space
+   under the header reads as an empty band — tighten it there only */
+:root.shortcuts-merged .p-body { padding-top: 0; }
+/* line-height 21px leaves ~3.5px of air above the glyphs; 15px hugs the text */
+:root.shortcuts-merged .p-breadcrumbs { margin-bottom: 10px; line-height: 15px; }
 
 /* blocks */
 .block {

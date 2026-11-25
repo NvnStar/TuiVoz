@@ -38,9 +38,15 @@ export function avatarMarkup(user, size = 's') {
     : avatarUrlById(id, retinaSize);
   const srcset = retina && retina !== src ? ` srcset="${esc(imgSrc(retina))} 2x"` : '';
   const [bg, fg] = DYNAMIC_AVATAR[id % DYNAMIC_AVATAR.length];
-  const initial = esc(((user && user.username) || '?').slice(0, 1).toUpperCase());
+  // The anon placeholder (userless but with an image) renders as-is —
+  // no coloured initial bleeding through transparent corners. Guests
+  // (userless, no image) keep the initial fallback.
+  const placeholder = !id && !!src;
+  const initial = placeholder ? '' : esc(((user && user.username) || '?').slice(0, 1).toUpperCase());
+  const fallbackBg = placeholder ? 'transparent' : bg;
+  const fallbackFg = placeholder ? 'transparent' : fg;
   const img = src
     ? `<img class="avatar-img" src="${esc(imgSrc(src))}"${srcset} alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
     : '';
-  return `<span class="avatar-fallback" style="background:${bg};color:${fg}"><span aria-hidden="true">${initial}</span>${img}</span>`;
+  return `<span class="avatar-fallback" style="background:${fallbackBg};color:${fallbackFg}"><span aria-hidden="true">${initial}</span>${img}</span>`;
 }

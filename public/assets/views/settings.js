@@ -10,7 +10,8 @@ import {
   loadSettings, addShortcut, updateShortcut, removeShortcut, moveShortcut,
   exportSettingsJson, importSettingsJson, setInfiniteScroll, setDataSaving,
   SCROLL_MODES, SCROLL_LABELS,
-  setTheme, setFont, setFontScale, getFontScale, setImageDownload, setPostScreenshot, setStaticAvatars, setBannedUsers, setVozSupport, setPushEnabled, setReactorNames, setProxyImages, setAutoHideChrome,
+  setTheme, setFont, setFontScale, getFontScale, setImageDownload, setPostScreenshot, setStaticAvatars, setBannedUsers, setVozSupport, setPushEnabled, setReactorNames, setProxyImages, setAutoHideChrome, setMergeShortcuts, setAnonMode, setAnonMimic, setAnonHideReply,
+  ANON_MODES, ANON_LABELS, ANON_HELP,
   BANNED_USER_MODES, BANNED_USERS_LABELS, BANNED_USERS_HELP,
   setFullNumbers, FULL_NUMBERS_MODES, FULL_NUMBERS_LABELS,
   DATA_SAVING_MODES, DATA_SAVING_LABELS, DATA_SAVING_HELP,
@@ -18,6 +19,7 @@ import {
   FONT_SCALE_MIN, FONT_SCALE_MAX, FONT_SCALE_STEP,
 } from '../lib/settings.js';
 import { isDataSaving } from '../lib/dataSaving.js';
+import { parseProfileInput, resolveMimicUser } from '../lib/anon.js';
 import {
   getAlbums, addAlbum, renameAlbum, removeAlbums, moveAlbum, setAlbumImages,
   getRecentStickers, addRecentSticker, clearRecentStickers, flushStickerStorage,
@@ -184,7 +186,7 @@ function tabsHtml(active) {
 }
 
 function settingsHtml(active = settingsTabFromHash()) {
-  const { navShortcuts, infiniteScroll, theme, font, postSize, uiSize, imageDownload, postScreenshot, staticAvatars, bannedUsers, fullNumbers, dataSaving, vozSupport, pushEnabled, reactorNames, proxyImages, autoHideChrome } = loadSettings();
+  const { navShortcuts, infiniteScroll, theme, font, postSize, uiSize, imageDownload, postScreenshot, staticAvatars, bannedUsers, fullNumbers, dataSaving, vozSupport, pushEnabled, reactorNames, proxyImages, autoHideChrome, mergeShortcuts, anonMode, anonMimic, anonHideReply } = loadSettings();
   const albums = getAlbums();
   return `<div class="block settings-block">
       <h1 class="block-header">Cài đặt</h1>
@@ -222,6 +224,32 @@ function settingsHtml(active = settingsTabFromHash()) {
             </span>
             <input type="checkbox" id="auto-hide-chrome"${autoHideChrome ? ' checked' : ''}>
           </label>
+          <label class="settings-toggle" for="merge-shortcuts">
+            <span class="settings-toggle-copy">
+              <span class="settings-toggle-name">Hiển thị thanh phím tắt chung với tên người dùng</span>
+              <span class="option-card-desc">Gộp phím tắt lên cùng hàng với tên người dùng, hộp thư, thông báo và tìm kiếm — ẩn logo VOZ và thanh phím tắt riêng. Phím tắt không vừa màn hình tự gom vào nút “…” (không xuống dòng).</span>
+            </span>
+            <input type="checkbox" id="merge-shortcuts"${mergeShortcuts ? ' checked' : ''}>
+          </label>
+          <h3 class="settings-subhead">Chế độ ẩn danh</h3>
+          ${optionCards('anon-mode', ANON_MODES, ANON_LABELS, ANON_HELP, anonMode)}
+          <div id="anon-mimic-row"${anonMode === 'mimic' ? '' : ' hidden'}>
+            <label class="settings-input-label" for="anon-mimic-input">Hồ sơ thành viên muốn giả danh</label>
+            <div class="anon-mimic-line">
+              <input class="input" type="text" id="anon-mimic-input" placeholder="https://voz.vn/members/ten.123/ hoặc tên thành viên" value="${anonMimic ? esc(anonMimic.username) : ''}">
+              <span class="anon-mimic-status" id="anon-mimic-status" aria-live="polite"></span>
+            </div>
+            <p class="formHint">Chỉ thay đổi hiển thị phía bạn: bài viết, bình luận hay hành động vẫn ghi nhận đúng tài khoản thật của bạn.</p>
+          </div>
+          <div id="anon-hide-reply-row"${anonMode === 'hide' ? '' : ' hidden'}>
+            <label class="settings-toggle" for="anon-hide-reply">
+              <span class="settings-toggle-copy">
+                <span class="settings-toggle-name">Ẩn toàn bộ khung trả lời</span>
+                <span class="option-card-desc">Ẩn hẳn khung trả lời nhanh ở cuối chủ đề — tránh lỡ tay viết bài khi đang ẩn danh (bài viết vẫn ghi nhận tài khoản thật của bạn).</span>
+              </span>
+              <input type="checkbox" id="anon-hide-reply"${anonHideReply ? ' checked' : ''}>
+            </label>
+          </div>
           <h3 class="settings-subhead">Ảnh trong bài viết</h3>
           <label class="settings-toggle" for="image-download">
             <span class="settings-toggle-copy">
@@ -1024,6 +1052,11 @@ export function viewSettings() {
     setAutoHideChrome(enabled);
     toast(`Tự ẩn thanh trên cùng: ${enabled ? 'Bật' : 'Tắt'}`);
   });
+  document.getElementById('merge-shortcuts')?.addEventListener('change', (event) => {
+    const enabled = event.currentTarget.checked;
+    setMergeShortcuts(enabled);
+    toast(`Phím tắt chung hàng người dùng: ${enabled ? 'Bật' : 'Tắt'}`);
+  });
   document.getElementById('voz-support')?.addEventListener('change', (event) => {
     const enabled = event.currentTarget.checked;
     setVozSupport(enabled);
@@ -1050,6 +1083,59 @@ export function viewSettings() {
     setFullNumbers(value);
     toast(`Số liệu không rút gọn: ${FULL_NUMBERS_LABELS[value]}`);
   });
+  wireOptionGroup('anon-mode', (value) => {
+    setAnonMode(value);
+    toast(`Chế độ ẩn danh: ${ANON_LABELS[value]}`);
+    const row = document.getElementById('anon-mimic-row');
+    if (row) row.hidden = value !== 'mimic';
+    if (value === 'mimic') document.getElementById('anon-mimic-input')?.focus();
+    const hideReplyRow = document.getElementById('anon-hide-reply-row');
+    if (hideReplyRow) hideReplyRow.hidden = value !== 'hide';
+  });
+  document.getElementById('anon-hide-reply')?.addEventListener('change', (event) => {
+    setAnonHideReply(event.target.checked);
+    toast(event.target.checked ? 'Đã ẩn khung trả lời trong chủ đề' : 'Hiện lại khung trả lời trong chủ đề');
+  });
+  wireAnonMimicInput();
+
+  function wireAnonMimicInput() {
+    const input = document.getElementById('anon-mimic-input');
+    const status = document.getElementById('anon-mimic-status');
+    if (!input) return;
+    let resolving = 0;
+    const resolveAndSave = async () => {
+      const text = input.value.trim();
+      if (!text) {
+        setAnonMimic(null);
+        if (status) status.textContent = '';
+        return;
+      }
+      const parsed = parseProfileInput(text);
+      if (!parsed) {
+        if (status) status.textContent = '⚠ Không đọc được — dán liên kết hồ sơ hoặc nhập tên thành viên.';
+        return;
+      }
+      const ticket = ++resolving;
+      if (status) status.textContent = 'Đang tìm thành viên…';
+      try {
+        const user = await resolveMimicUser(parsed);
+        if (ticket !== resolving) return; // a newer edit superseded this lookup
+        setAnonMimic(user);
+        input.value = user.username;
+        if (status) status.textContent = `✓ ${user.username}`;
+      } catch {
+        if (ticket !== resolving) return;
+        if (status) status.textContent = '⚠ Không tìm thấy thành viên này trên voz.vn.';
+      }
+    };
+    input.addEventListener('change', resolveAndSave);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        resolveAndSave();
+      }
+    });
+  }
 
   const showError = (message) => {
     errorEl.textContent = message;

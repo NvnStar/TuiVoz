@@ -123,6 +123,11 @@
 .settings-toggle-copy { display: flex; flex-direction: column; min-width: 0; }
 .settings-toggle-name { font-weight: var(--fw-bold); color: var(--text); }
 .settings-toggle input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: var(--link); }
+/* anonymous-mode mimic input */
+.settings-input-label { display: block; font-weight: var(--fw-bold); color: var(--text); margin: 10px 0 4px; }
+.anon-mimic-line { display: flex; align-items: center; gap: 8px; }
+.anon-mimic-line .input { flex: 1 1 auto; min-width: 0; }
+.anon-mimic-status { flex: 0 0 auto; font-size: calc(13px * var(--ui-scale)); color: var(--dimmed); white-space: nowrap; }
 .settings-backup .code-box { min-height: 190px; font-family: Consolas, "Courier New", monospace; font-size: calc(12px * var(--ui-scale)); white-space: pre; }
 .settings-backup .shortcut-form-actions { margin-top: 10px; }
 

@@ -6,6 +6,7 @@ import { threadPath, forumPath, userPath, withPage } from '../core/paths.js';
 import { currentPage, navigate, keepCurrentScroll } from '../core/nav.js';
 import { ICON_EYE_ON, ICON_EYE_OFF, ICON_USER, ICON_REPLY, ICON_ATTACH } from '../core/icons.js';
 import { avatarMarkup } from '../lib/avatar.js';
+import { displayUser, hideQuickReply } from '../lib/anon.js';
 import { api, ApiError } from '../api.js';
 import { setActiveNav, setBreadcrumbs } from '../ui/chrome.js';
 import { setThreadTitle } from '../ui/title.js';
@@ -64,7 +65,14 @@ function focusReplyEnd() {
 // Quick reply shows reader avatar + arrow column like voz.vn.
 function quickReplyUserHtml() {
   const me = state.me;
-  const avatar = `<a ${me ? `href="${userPath(me)}" data-member-id="${Number(me.user_id)}"` : ''} class="avatar avatar--m" aria-label="${esc(me?.username || 'Khách')}">${avatarMarkup(me, 'm')}</a>`;
+  // Anonymous mode swaps the visible avatar; in mimic mode the link follows
+  // the mimic profile, in hide mode there is no link at all.
+  const shown = displayUser(me);
+  const linkUser = shown !== me && shown.user_id ? shown : me;
+  const noLink = shown !== me && !shown.user_id;
+  const avatar = noLink
+    ? `<span class="avatar avatar--m" aria-label="${esc(shown.username)}">${avatarMarkup(shown, 'm')}</span>`
+    : `<a ${linkUser ? `href="${userPath(linkUser)}" data-member-id="${Number(linkUser.user_id)}"` : ''} class="avatar avatar--m" aria-label="${esc(shown?.username || 'Khách')}">${avatarMarkup(shown, 'm')}</a>`;
   return `<div class="message-cell message-cell--user">
                           <div class="message-user">
                             <div class="message-avatar">
@@ -189,7 +197,9 @@ export async function viewThread(threadId, page, focusPost) {
       </div>
       <div id="reply-block">
         ${
-          canReply
+          hideQuickReply()
+            ? ''
+            : canReply
             ? `<form id="reply-form" class="block js-quickReply">
                  <div class="block-container">
                    <div class="block-body">
